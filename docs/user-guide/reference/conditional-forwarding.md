@@ -1,13 +1,12 @@
 # Conditional Forwarding
 
-After processing the data, conditional forwarding is doable based on the `Tags` returned in the result. 
-Below is a list of different logic operations that can be done on tags.
-- **and** - forwards the message if all the tags specified are present in Message's tags.
-- **or** - forwards the message if one of the tags specified is present in Message's tags.
-- **not** - forwards the message if all the tags specified are not present in Message's tags.
+Conditional forwarding allows data to be processed and then forwarded based on the `Tags` returned in the result. This document outlines the different logical operations that can be performed on tags.
 
-For example, there's a UDF used to process numbers, and forward the result to different vertices based on the number is even or odd. In this case, you can set the `tag` to `even-tag` or `odd-tag` in each of the returned messages,
-and define the edges as below:
+* **and** - The message is forwarded if all the tags specified in the Message are present in the edge conditions.
+* **or** - The message is forwarded if any of the tags specified in the Message are present in the edge conditions.
+* **not** - The message is forwarded if the tags specified in the Message are not present in the edge conditions.
+
+Consider an example where a UDF is used to process numbers and forward the result to different vertices based on whether the number is even or odd. In this case, you can set the `tag` to `even-tag` or `odd-tag` in each of the returned messages, and define the edges as follows:
 
 ```yaml
 edges:
@@ -33,5 +32,3 @@ edges:
         values:
           - odd-tag
           - even-tag
-```
-
