@@ -9,5 +9,5 @@ async processing platform.
  protocol (in other words, the Source of Numaflow is decoupled with the Sink). There are a couple of use-cases where request/response semantics
  are required. E.g.,
  
- * Response with the status of completion (ability to say whether the processing is complete)
+ * Response with the status of completion (ability to say whether the processing is complete).
  * Response with output of a complex computation over the DCG directly to the callee (say, something like [kserve](https://kserve.github.io/website/latest/)).
