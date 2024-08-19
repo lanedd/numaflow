@@ -27,6 +27,9 @@ type Sink struct {
 	// initiated if the ud-sink response field sets it.
 	// +optional
 	Fallback *AbstractSink `json:"fallback,omitempty" protobuf:"bytes,2,opt,name=fallback"`
+	// RetryStrategy
+	// +optional
+	RetryStrategy *RetryStrategy
 }
 
 type AbstractSink struct {
