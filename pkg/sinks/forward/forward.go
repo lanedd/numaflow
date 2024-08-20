@@ -376,7 +376,7 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 		// Note: this is an unwanted memory allocation during a happy path. We want only minimal allocation since using failedMessages is an unlikely path.
 		var failedMessages []isb.Message
 		needRetry := false
-		// TODO(Retry-Sink): convert to backoff struc
+		// TODO(Retry-Sink): convert to backoff struct
 		err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
 			// retry every "duration * factor + [0, jitter]" interval for 5 times
 			Duration: df.opts.retryStrategy.BackOff.Duration.Duration,
@@ -450,6 +450,7 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 			return true, nil
 		})
 		// Forced shutdown
+		// TODO(Retry-Sink): Check for ctx done? That should be convered in shutdown
 		if ok, _ := df.IsShuttingDown(); err != nil && ok {
 			return nil, nil, err
 		}
@@ -457,19 +458,18 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 		// handled
 		if len(messages) > 0 {
 			switch df.opts.retryStrategy.OnFailure {
-			// If on failure, we keep on retrying then lets continue the loop and try all again
 			case dfv1.OnFailRetry:
+				// If on failure, we keep on retrying then lets continue the loop and try all again
 				continue
-				// If on fail we want to Drop in that case lets, not retry further a
-			case dfv1.OnFailDrop:
-				return writeOffsets, fallbackMessages, nil
 			case dfv1.OnFailFallback:
+				// If onFail we have to divert messages to fallback, lets add all failed messages to fallback
 				fallbackMessages = append(fallbackMessages, messages...)
-				return writeOffsets, fallbackMessages, nil
+			case dfv1.OnFailDrop:
+				// If on fail we want to Drop in that case lets, not retry further a
+				df.opts.logger.Info()
 			}
-		} else {
-			break
 		}
+		break
 	}
 	metrics.WriteMessagesCount.With(map[string]string{metrics.LabelVertex: df.vertexName, metrics.LabelPipeline: df.pipelineName, metrics.LabelVertexType: string(dfv1.VertexTypeSink), metrics.LabelVertexReplicaIndex: strconv.Itoa(int(df.vertexReplica)), metrics.LabelPartitionName: sinkWriter.GetName()}).Add(float64(writeCount))
 	metrics.WriteBytesCount.With(map[string]string{metrics.LabelVertex: df.vertexName, metrics.LabelPipeline: df.pipelineName, metrics.LabelVertexType: string(dfv1.VertexTypeSink), metrics.LabelVertexReplicaIndex: strconv.Itoa(int(df.vertexReplica)), metrics.LabelPartitionName: sinkWriter.GetName()}).Add(writeBytes)
