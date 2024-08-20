@@ -373,9 +373,6 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 
 	for {
 		//_writeOffsets, errs := sinkWriter.Write(ctx, messages)
-		// Note: this is an unwanted memory allocation during a happy path. We want only minimal allocation since using failedMessages is an unlikely path.
-		var failedMessages []isb.Message
-		needRetry := false
 		// TODO(Retry-Sink): convert to backoff struct
 		err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
 			// retry every "duration * factor + [0, jitter]" interval for 5 times
@@ -386,6 +383,9 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 			Steps: int(*df.opts.retryStrategy.BackOff.Steps) + 1,
 			Cap:   df.opts.retryStrategy.BackOff.Cap.Duration,
 		}, func(_ context.Context) (done bool, err error) {
+			// Note: this is an unwanted memory allocation during a happy path. We want only minimal allocation since using failedMessages is an unlikely path.
+			var failedMessages []isb.Message
+			needRetry := false
 			_writeOffsets, errs := sinkWriter.Write(ctx, messages)
 			for idx, msg := range messages {
 				if err = errs[idx]; err != nil {
@@ -435,7 +435,9 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 					}
 				}
 			}
-
+			// set messages to failedMessages, in case of success this should be empty
+			// While checking for retry we see the length of the messages left
+			messages = failedMessages
 			if needRetry {
 				df.opts.logger.Errorw("Retrying failed messages",
 					zap.Any("errors", errorArrayToMap(errs)),
@@ -443,8 +445,6 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 					zap.String(metrics.LabelVertex, df.vertexName),
 					zap.String(metrics.LabelPartitionName, sinkWriter.GetName()),
 				)
-				// set messages to failed for the retry
-				messages = failedMessages
 				return false, nil
 			}
 			return true, nil
