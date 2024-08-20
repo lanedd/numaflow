@@ -885,6 +885,161 @@ needs to add “Authorization: Bearer <token>” in the header
 
 </table>
 
+<h3 id="numaflow.numaproj.io/v1alpha1.Backoff">
+
+Backoff
+</h3>
+
+<p>
+
+(<em>Appears on:</em>
+<a href="#numaflow.numaproj.io/v1alpha1.RetryStrategy">RetryStrategy</a>)
+</p>
+
+<p>
+
+<p>
+
+Backoff holds parameters applied to a Backoff retry strategy.
+</p>
+
+</p>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+
+Field
+</th>
+
+<th>
+
+Description
+</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td>
+
+<code>duration</code></br> <em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration </a> </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+<p>
+
+The initial duration.
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<code>factor</code></br> <em> int32 </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+<p>
+
+Duration is multiplied by factor each iteration, if factor is not zero
+and the limits imposed by Steps and Cap have not been reached. Should
+not be negative. The jitter does not contribute to the updates to the
+duration parameter.
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<code>jitter</code></br> <em> int32 </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+<p>
+
+The sleep at each iteration is the duration plus an additional amount
+chosen uniformly at random from the interval between zero and
+<code>jitter\*duration</code>.
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<code>steps</code></br> <em> int32 </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+<p>
+
+The remaining number of iterations in which the duration parameter may
+change (but progress can be stopped earlier by hitting the cap). If not
+positive, the duration is not changed. Used for exponential backoff in
+combination with Factor and Cap.
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<code>cap</code></br> <em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration </a> </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+<p>
+
+A limit on revised values of the duration parameter. If a multiplication
+by the factor parameter would make the duration exceed the cap then the
+duration is set to the cap and the steps parameter is set to zero.
+</p>
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
 <h3 id="numaflow.numaproj.io/v1alpha1.BasicAuth">
 
 BasicAuth
@@ -6707,6 +6862,23 @@ etc.).
 
 </p>
 
+<h3 id="numaflow.numaproj.io/v1alpha1.OnFailRetryStrategy">
+
+OnFailRetryStrategy (<code>string</code> alias)
+</p>
+
+</h3>
+
+<p>
+
+(<em>Appears on:</em>
+<a href="#numaflow.numaproj.io/v1alpha1.RetryStrategy">RetryStrategy</a>)
+</p>
+
+<p>
+
+</p>
+
 <h3 id="numaflow.numaproj.io/v1alpha1.PBQStorage">
 
 PBQStorage
@@ -8045,6 +8217,78 @@ config
 
 </table>
 
+<h3 id="numaflow.numaproj.io/v1alpha1.RetryStrategy">
+
+RetryStrategy
+</h3>
+
+<p>
+
+(<em>Appears on:</em>
+<a href="#numaflow.numaproj.io/v1alpha1.Sink">Sink</a>)
+</p>
+
+<p>
+
+</p>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+
+Field
+</th>
+
+<th>
+
+Description
+</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td>
+
+<code>backoff</code></br> <em>
+<a href="#numaflow.numaproj.io/v1alpha1.Backoff"> Backoff </a> </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<code>onFailure</code></br> <em>
+<a href="#numaflow.numaproj.io/v1alpha1.OnFailRetryStrategy">
+OnFailRetryStrategy </a> </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
 <h3 id="numaflow.numaproj.io/v1alpha1.SASL">
 
 SASL
@@ -9207,6 +9451,27 @@ Description
 Fallback sink can be imagined as DLQ for primary Sink. The writes to
 Fallback sink will only be initiated if the ud-sink response field sets
 it.
+</p>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<code>retryStrategy</code></br> <em>
+<a href="#numaflow.numaproj.io/v1alpha1.RetryStrategy"> RetryStrategy
+</a> </em>
+</td>
+
+<td>
+
+<em>(Optional)</em>
+<p>
+
+RetryStrategy
 </p>
 
 </td>

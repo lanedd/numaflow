@@ -201,6 +201,46 @@ message Authorization {
   optional k8s.io.api.core.v1.SecretKeySelector token = 1;
 }
 
+// Backoff holds parameters applied to a Backoff retry strategy.
+message Backoff {
+  // The initial duration.
+  // +kubebuilder:default="1ms"
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration duration = 1;
+
+  // Duration is multiplied by factor each iteration, if factor is not zero
+  // and the limits imposed by Steps and Cap have not been reached.
+  // Should not be negative.
+  // The jitter does not contribute to the updates to the duration parameter.
+  // +optional
+  // +kubebuilder:default=1
+  optional int32 factor = 2;
+
+  // The sleep at each iteration is the duration plus an additional
+  // amount chosen uniformly at random from the interval between
+  // zero and `jitter*duration`.
+  // +optional
+  // +kubebuilder:default=0
+  optional int32 jitter = 3;
+
+  // The remaining number of iterations in which the duration
+  // parameter may change (but progress can be stopped earlier by
+  // hitting the cap). If not positive, the duration is not
+  // changed. Used for exponential backoff in combination with
+  // Factor and Cap.
+  // +optional
+  // +kubebuilder:default=0
+  optional int32 steps = 4;
+
+  // A limit on revised values of the duration parameter. If a
+  // multiplication by the factor parameter would make the duration
+  // exceed the cap then the duration is set to the cap and the
+  // steps parameter is set to zero.
+  // +kubebuilder:default="1ms"
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration cap = 5;
+}
+
 // BasicAuth represents the basic authentication approach which contains a user name and a password.
 message BasicAuth {
   // Secret for auth user
@@ -1211,6 +1251,15 @@ message RedisSettings {
   optional string sentinel = 4;
 }
 
+message RetryStrategy {
+  // +optional
+  optional Backoff backoff = 1;
+
+  // +optional
+  // +kubebuilder:default="retry"
+  optional string onFailure = 2;
+}
+
 message SASL {
   // SASL mechanism to use
   optional string mechanism = 1;
@@ -1375,6 +1424,10 @@ message Sink {
   // initiated if the ud-sink response field sets it.
   // +optional
   optional AbstractSink fallback = 2;
+
+  // RetryStrategy
+  // +optional
+  optional RetryStrategy retryStrategy = 3;
 }
 
 // SlidingWindow describes a sliding window

@@ -29,7 +29,7 @@ type Sink struct {
 	Fallback *AbstractSink `json:"fallback,omitempty" protobuf:"bytes,2,opt,name=fallback"`
 	// RetryStrategy
 	// +optional
-	RetryStrategy *RetryStrategy
+	RetryStrategy *RetryStrategy `json:"retryStrategy,omitempty" protobuf:"bytes,3,opt,name=retryStrategy"`
 }
 
 type AbstractSink struct {

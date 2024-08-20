@@ -3571,6 +3571,33 @@ spec:
                     type: object
                   log:
                     type: object
+                  retryStrategy:
+                    properties:
+                      backoff:
+                        properties:
+                          cap:
+                            default: 1ms
+                            type: string
+                          duration:
+                            default: 1ms
+                            type: string
+                          factor:
+                            default: 1
+                            format: int32
+                            type: integer
+                          jitter:
+                            default: 0
+                            format: int32
+                            type: integer
+                          steps:
+                            default: 0
+                            format: int32
+                            type: integer
+                        type: object
+                      onFailure:
+                        default: retry
+                        type: string
+                    type: object
                   udsink:
                     properties:
                       container:
