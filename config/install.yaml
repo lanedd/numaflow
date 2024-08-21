@@ -6188,7 +6188,6 @@ spec:
                       backoff:
                         properties:
                           cap:
-                            default: 1ms
                             type: string
                           duration:
                             default: 1ms
@@ -15671,7 +15670,6 @@ spec:
                             backoff:
                               properties:
                                 cap:
-                                  default: 1ms
                                   type: string
                                 duration:
                                   default: 1ms
@@ -21120,7 +21118,6 @@ spec:
                       backoff:
                         properties:
                           cap:
-                            default: 1ms
                             type: string
                           duration:
                             default: 1ms

@@ -236,7 +236,6 @@ message Backoff {
   // multiplication by the factor parameter would make the duration
   // exceed the cap then the duration is set to the cap and the
   // steps parameter is set to zero.
-  // +kubebuilder:default="1ms"
   // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration cap = 5;
 }

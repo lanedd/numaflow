@@ -491,20 +491,25 @@ func errorArrayToMap(errs []error) map[string]int64 {
 }
 
 func (df *DataForward) getBackOffConditions(infinite bool) wait.Backoff {
+	capVal := DefaultCapDuration.Duration
+	if df.opts.retryStrategy.BackOff.Cap != nil {
+		capVal = df.opts.retryStrategy.BackOff.Cap.Duration
+	}
+
 	backoffCond := wait.Backoff{
 		Duration: df.opts.retryStrategy.BackOff.Duration.Duration,
 		Factor:   float64(*df.opts.retryStrategy.BackOff.Factor),
 		Jitter:   float64(*df.opts.retryStrategy.BackOff.Jitter),
 		// +1 for the first try which should always be done
 		Steps: int(*df.opts.retryStrategy.BackOff.Steps) + 1,
-		Cap:   df.opts.retryStrategy.BackOff.Cap.Duration,
+		Cap:   capVal,
 	}
 	if infinite {
 		backoffCond = wait.Backoff{
 			Steps:    int(DefaultRetrySteps),
 			Duration: df.opts.retryStrategy.BackOff.Duration.Duration,
-			Factor:   1,
-			Jitter:   0.1,
+			Factor:   float64(DefaultRetryFactor),
+			Jitter:   float64(DefaultRetryJitter),
 		}
 	}
 	return backoffCond

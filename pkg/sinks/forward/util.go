@@ -17,6 +17,7 @@ const (
 )
 
 var DefaultRetryDuration = &metav1.Duration{Duration: DefaultRetrySleepInterval}
+var DefaultCapDuration = &metav1.Duration{Duration: 0}
 
 func defaultRetryStrategy() *dfv1.RetryStrategy {
 	factor := DefaultRetryFactor
@@ -28,7 +29,7 @@ func defaultRetryStrategy() *dfv1.RetryStrategy {
 			Factor:   &factor,
 			Jitter:   &jitter,
 			Steps:    &steps,
-			Cap:      DefaultRetryDuration,
+			Cap:      DefaultCapDuration,
 		},
 		OnFailure: dfv1.OnFailDrop,
 	}

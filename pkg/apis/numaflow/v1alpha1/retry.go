@@ -51,7 +51,6 @@ type Backoff struct {
 	// multiplication by the factor parameter would make the duration
 	// exceed the cap then the duration is set to the cap and the
 	// steps parameter is set to zero.
-	// +kubebuilder:default="1ms"
 	// +optional
 	Cap *metav1.Duration `json:"cap,omitempty" protobuf:"bytes,5,opt,name=cap"`
 }
