@@ -418,7 +418,6 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 						conv += 1
 					}
 					msg.Headers[RetryCountHeader] = strconv.Itoa(conv)
-					df.opts.logger.Info("MYDEBUG:", msg.Headers)
 					// add the message to the failed message
 					failedMessages = append(failedMessages, msg)
 
@@ -459,6 +458,7 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 		// check what is the error strategy after retry is completed and we still have messages to be
 		// handled
 		if len(messagesToTry) > 0 {
+			df.opts.logger.Info("MYDEBUG: I'm not done yet")
 			switch failStrategy {
 			case dfv1.OnFailRetry:
 				// If on failure, we keep on retrying then lets continue the loop and try all again
@@ -468,7 +468,9 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 				fallbackMessages = append(fallbackMessages, messagesToTry...)
 			case dfv1.OnFailDrop:
 				// If on fail we want to Drop in that case lets, not retry further a
-				df.opts.logger.Info("Going to drop the failed messages after retry")
+				df.opts.logger.Info("Dropping the failed messages after retry in the Sink")
+				// Update the drop metric count with the messages left
+				metrics.DropMessagesCount.With(map[string]string{metrics.LabelVertex: df.vertexName, metrics.LabelPipeline: df.pipelineName, metrics.LabelVertexType: string(dfv1.VertexTypeSink), metrics.LabelVertexReplicaIndex: strconv.Itoa(int(df.vertexReplica)), metrics.LabelPartitionName: sinkWriter.GetName()}).Add(float64(len(messagesToTry)))
 			}
 		}
 		break
