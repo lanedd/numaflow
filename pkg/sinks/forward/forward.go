@@ -258,7 +258,6 @@ func (df *DataForward) forwardAChunk(ctx context.Context) {
 		m.Watermark = time.Time(processorWM)
 		writeMessages = append(writeMessages, m.Message)
 	}
-
 	// write the messages to the sink
 	writeOffsets, fallbackMessages, err := df.writeToSink(ctx, df.sinkWriter, writeMessages, false)
 	// error will not be nil only when we get ctx.Done()
@@ -362,32 +361,31 @@ func (df *DataForward) ackFromBuffer(ctx context.Context, offsets []isb.Offset) 
 }
 
 // writeToSink forwards an array of messages to a sink and it is a blocking call it keeps retrying until shutdown has been initiated.
-func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWriter, messages []isb.Message, isFbSinkWriter bool) ([]isb.Offset, []isb.Message, error) {
+func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWriter, messagesToTry []isb.Message, isFbSinkWriter bool) ([]isb.Offset, []isb.Message, error) {
 	var (
-		err        error
-		writeCount int
-		writeBytes float64
+		err              error
+		writeCount       int
+		writeBytes       float64
+		fallbackMessages []isb.Message
 	)
-	writeOffsets := make([]isb.Offset, 0, len(messages))
-	var fallbackMessages []isb.Message
+	writeOffsets := make([]isb.Offset, 0, len(messagesToTry))
+
+	failStrategy := df.opts.retryStrategy.OnFailure
+	if isFbSinkWriter {
+		failStrategy = dfv1.OnFailRetry
+	}
+	// extract the backOff conditions for the retry logic, when the isFbSinkWriter is true, then
+	// this function returns an infinite backoff
+	backoffCond := df.getBackOffConditions(isFbSinkWriter)
 
 	for {
-		//_writeOffsets, errs := sinkWriter.Write(ctx, messages)
-		// TODO(Retry-Sink): convert to backoff struct
-		err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
-			// retry every "duration * factor + [0, jitter]" interval for 5 times
-			Duration: df.opts.retryStrategy.BackOff.Duration.Duration,
-			Factor:   float64(*df.opts.retryStrategy.BackOff.Factor),
-			Jitter:   float64(*df.opts.retryStrategy.BackOff.Jitter),
-			// +1 for the first try which should always be done
-			Steps: int(*df.opts.retryStrategy.BackOff.Steps) + 1,
-			Cap:   df.opts.retryStrategy.BackOff.Cap.Duration,
-		}, func(_ context.Context) (done bool, err error) {
+		err = wait.ExponentialBackoffWithContext(ctx, backoffCond, func(_ context.Context) (done bool, err error) {
 			// Note: this is an unwanted memory allocation during a happy path. We want only minimal allocation since using failedMessages is an unlikely path.
 			var failedMessages []isb.Message
 			needRetry := false
-			_writeOffsets, errs := sinkWriter.Write(ctx, messages)
-			for idx, msg := range messages {
+			df.opts.logger.Info("MYDEBUG: Trying sink write at: ", time.Now().String())
+			_writeOffsets, errs := sinkWriter.Write(ctx, messagesToTry)
+			for idx, msg := range messagesToTry {
 				if err = errs[idx]; err != nil {
 					// if we are asked to write to fallback sink, check if the fallback sink is configured,
 					// and we are not already in the fallback sink write path.
@@ -411,12 +409,16 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 					// TODO(Retry-Sink) : Update retry count in the header of the messages,
 					// Do we want number of retries done or which retry is this
 					val, ok := msg.Headers[RetryCountHeader]
+					if msg.Headers == nil {
+						msg.Headers = make(map[string]string)
+					}
 					conv := 1
 					if ok {
 						conv, _ = strconv.Atoi(val)
 						conv += 1
 					}
 					msg.Headers[RetryCountHeader] = strconv.Itoa(conv)
+					df.opts.logger.Info("MYDEBUG:", msg.Headers)
 					// add the message to the failed message
 					failedMessages = append(failedMessages, msg)
 
@@ -437,7 +439,7 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 			}
 			// set messages to failedMessages, in case of success this should be empty
 			// While checking for retry we see the length of the messages left
-			messages = failedMessages
+			messagesToTry = failedMessages
 			if needRetry {
 				df.opts.logger.Errorw("Retrying failed messages",
 					zap.Any("errors", errorArrayToMap(errs)),
@@ -450,23 +452,23 @@ func (df *DataForward) writeToSink(ctx context.Context, sinkWriter sinker.SinkWr
 			return true, nil
 		})
 		// Forced shutdown
-		// TODO(Retry-Sink): Check for ctx done? That should be convered in shutdown
+		// TODO(Retry-Sink): Check for ctx done? That should be covered in shutdown
 		if ok, _ := df.IsShuttingDown(); err != nil && ok {
 			return nil, nil, err
 		}
 		// check what is the error strategy after retry is completed and we still have messages to be
 		// handled
-		if len(messages) > 0 {
-			switch df.opts.retryStrategy.OnFailure {
+		if len(messagesToTry) > 0 {
+			switch failStrategy {
 			case dfv1.OnFailRetry:
 				// If on failure, we keep on retrying then lets continue the loop and try all again
 				continue
 			case dfv1.OnFailFallback:
 				// If onFail we have to divert messages to fallback, lets add all failed messages to fallback
-				fallbackMessages = append(fallbackMessages, messages...)
+				fallbackMessages = append(fallbackMessages, messagesToTry...)
 			case dfv1.OnFailDrop:
 				// If on fail we want to Drop in that case lets, not retry further a
-				df.opts.logger.Info()
+				df.opts.logger.Info("Going to drop the failed messages after retry")
 			}
 		}
 		break
@@ -486,4 +488,24 @@ func errorArrayToMap(errs []error) map[string]int64 {
 		}
 	}
 	return result
+}
+
+func (df *DataForward) getBackOffConditions(infinite bool) wait.Backoff {
+	backoffCond := wait.Backoff{
+		Duration: df.opts.retryStrategy.BackOff.Duration.Duration,
+		Factor:   float64(*df.opts.retryStrategy.BackOff.Factor),
+		Jitter:   float64(*df.opts.retryStrategy.BackOff.Jitter),
+		// +1 for the first try which should always be done
+		Steps: int(*df.opts.retryStrategy.BackOff.Steps) + 1,
+		Cap:   df.opts.retryStrategy.BackOff.Cap.Duration,
+	}
+	if infinite {
+		backoffCond = wait.Backoff{
+			Steps:    int(DefaultRetrySteps),
+			Duration: df.opts.retryStrategy.BackOff.Duration.Duration,
+			Factor:   1,
+			Jitter:   0.1,
+		}
+	}
+	return backoffCond
 }
